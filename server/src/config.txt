@@ -1,0 +1,3 @@
+this is a text file to please the .cmakelists file 
+because it wants to copy this file into the build directory.
+update .cmakelists to remove this file
