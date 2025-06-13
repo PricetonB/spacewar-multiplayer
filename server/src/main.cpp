@@ -8,10 +8,34 @@
 // with udp only reveiving sockets need to bind. if send only just call send 
 
 #include <SFML/Network.hpp>
+#include <cstddef>
 #include <iostream>
 #include <array>
 #include <thread>
 #include <unordered_map>
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct PlayerState {
+    int32_t x = 0;
+    int32_t y = 0;
+};
+
+
+
+
+
+//========================================================
 
 
 
@@ -59,8 +83,7 @@ void send_data_to_party(sf::UdpSocket& socket, const std::string& message, std::
 
 
 
-bool receive_data(sf::UdpSocket& socket, std::array<char, 200>& receiving_buffer, std::unordered_map<std::string, unsigned short>& ipMap) {
-  std::size_t received;
+bool receive_data(sf::UdpSocket& socket, std::array<char, 200>& receiving_buffer, std::unordered_map<std::string, unsigned short>& ipMap, std::size_t& received) {
   unsigned short senderPort;
   std::optional<sf::IpAddress> optionalClientIp;
 
@@ -103,7 +126,69 @@ bool receive_data(sf::UdpSocket& socket, std::array<char, 200>& receiving_buffer
 
 
 
+//========================================================
+
+std::string pack_transform_component(int32_t x, int32_t y) {
+    std::string buffer;
+    char componentID = 1;
+    int32_t length = sizeof(x) + sizeof(y); // 8 bytes
+
+    buffer.append(&componentID, 1);
+    buffer.append(reinterpret_cast<const char*>(&length), sizeof(length));
+    buffer.append(reinterpret_cast<const char*>(&x), sizeof(x));
+    buffer.append(reinterpret_cast<const char*>(&y), sizeof(y));
+
+    return buffer;
+}
+
+
+
+
+
+
+
+
+
+//========================================================
+
+void handle_input(const std::string& input,
+                  PlayerState& player,
+                  sf::UdpSocket& socket,
+                  std::unordered_map<std::string, unsigned short>& ipMap) {
+
+    if (input == "W") {
+        player.y += 1;
+    } else if (input == "S") {
+        player.y -= 1;
+    } else if (input == "A") {
+        player.x -= 1;
+    } else if (input == "D") {
+        player.x += 1;
+    } else {
+        std::cout << "input not recognized in handle input \n";
+        return; // unhandled input, ignore
+    }
+
+    std::cout << "Updated position: x=" << player.x << " y=" << player.y << "\n";
+
+    std::string message = pack_transform_component(player.x, player.y);
+
+    // Send updated position to all clients
+    send_data_to_party(socket, message, ipMap);
+}
+
+
+//========================================================
+
+
+
+
+
+
+
+
 int main() {
+  PlayerState playerState{};
   
   const unsigned short serverPort = 54000;
   const sf::IpAddress serverIp(127,0,0,1); // replace with your server's actual LAN IP
@@ -111,6 +196,7 @@ int main() {
   std::unordered_map<std::string, unsigned short> ip_port_Map;
   std::string confirmationMessage("i have received a message");
   std::array<char, 200> buffer;
+  std::size_t received;
 
 
   //init
@@ -124,9 +210,9 @@ int main() {
 
  //main loop 
   while (true) {
-    if (receive_data(socket, buffer, ip_port_Map)) {
-      //this is where we will update our component data based on received data
-      send_data_to_party(socket, confirmationMessage, ip_port_Map);
+    if (receive_data(socket, buffer, ip_port_Map, received)) {
+      std::string input(buffer.data(), received);
+      handle_input(input, playerState, socket, ip_port_Map);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }

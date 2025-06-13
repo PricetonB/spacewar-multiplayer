@@ -11,6 +11,7 @@
 #include <SFML/Network.hpp>
 #include <SFML/Network/IpAddress.hpp>
 #include <SFML/Network/UdpSocket.hpp>
+#include <cstddef>
 #include <iostream>
 #include <array>
 #include <string>
@@ -67,8 +68,7 @@ void send_data(sf::UdpSocket& socket, const std::string& message, const sf::IpAd
 
 
 
-void receive_data(sf::UdpSocket& socket, std::array<char, 200>& receiving_buffer) {
-  std::size_t received;
+void receive_data(sf::UdpSocket& socket, std::array<char, 200>& receiving_buffer, size_t& received) {
   unsigned short senderPort;
   std::optional<sf::IpAddress> optionalServerIp;
 
